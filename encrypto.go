@@ -32,7 +32,7 @@ func hkdf(salt, ikm, info []byte, l int) ([]byte, error) {
 
 	i := hmac.New(sha256.New, hu)
 	iu := i.Sum([]byte{1})
-	return iu[0 : l-1], nil
+	return iu[0 : l], nil
 }
 
 func createInfo(ty, cl, sv string) []byte {
