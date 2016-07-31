@@ -10,7 +10,6 @@ import (
 	"encoding/base64"
 	"encoding/binary"
 	"errors"
-	"fmt"
 	"math/big"
 	"math/rand"
 	"strings"
@@ -138,8 +137,6 @@ func GetEncryptoMessage(cl, auth string, raw []byte) (*Encrypt, error) {
 	buf := makePadding(0)
 	buf.Write(raw)
 	result := cp.Seal([]byte{}, n, buf.Bytes(), nil)
-	printAll(priv, pub, salt)
-	printAll(ix.Bytes(), prk, ci, ck, ni, n, result)
 	return &Encrypt{
 		Payload:    result,
 		Salt:       salt,
@@ -163,10 +160,4 @@ func makePadding(l int) *bytes.Buffer {
 		buf.WriteByte(0)
 	}
 	return buf
-}
-
-func printAll(b ...[]byte) {
-	for _, v := range b {
-		fmt.Println(convertBase64(v))
-	}
 }
