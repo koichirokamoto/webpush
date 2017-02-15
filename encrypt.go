@@ -1,4 +1,4 @@
-package webpushencrypto
+package webpush
 
 import (
 	"bytes"
@@ -22,8 +22,8 @@ type Encrypt struct {
 	PublickKey []byte
 }
 
-func createServerKey() ([]byte, *big.Int, *big.Int, error) {
-	salt, _ := createSalt(32)
+func serverKey() ([]byte, *big.Int, *big.Int, error) {
+	salt, _ := salt(32)
 	p, x, y, err := elliptic.GenerateKey(elliptic.P256(), bytes.NewReader(salt))
 	if err != nil {
 		return nil, nil, nil, err
@@ -46,7 +46,7 @@ func hkdf(salt, ikm, info []byte, l int) ([]byte, error) {
 	return i.Sum(nil)[0:l], nil
 }
 
-func createInfo(ty string, ctx []byte) []byte {
+func info(ty string, ctx []byte) []byte {
 	w := bytes.NewBuffer([]byte{})
 	w.WriteString("Content-Encoding: ")
 	w.WriteString(ty)
@@ -56,7 +56,7 @@ func createInfo(ty string, ctx []byte) []byte {
 	return w.Bytes()
 }
 
-func createSalt(i int) ([]byte, error) {
+func salt(i int) ([]byte, error) {
 	b := make([]byte, i)
 	_, err := rand.Read(b)
 	if err != nil {
@@ -65,7 +65,7 @@ func createSalt(i int) ([]byte, error) {
 	return b, nil
 }
 
-func createContext(cl, sv []byte) []byte {
+func context(cl, sv []byte) []byte {
 	buf := bytes.NewBuffer([]byte{})
 	buf.WriteByte(0)
 	bc := make([]byte, 2)
@@ -79,9 +79,9 @@ func createContext(cl, sv []byte) []byte {
 	return buf.Bytes()
 }
 
-// GetEncryptoMessage returns encrypted messsage for web push api.
-func GetEncryptoMessage(cl, auth string, raw []byte) (*Encrypt, error) {
-	dc, err := base64.URLEncoding.DecodeString(cl)
+// Encryption return encrypted messsage for web push api.
+func Encryption(key, auth string, raw []byte, pad int) (*Encrypt, error) {
+	dc, err := base64.URLEncoding.DecodeString(key)
 	if err != nil {
 		return nil, err
 	}
@@ -91,9 +91,9 @@ func GetEncryptoMessage(cl, auth string, raw []byte) (*Encrypt, error) {
 		return nil, err
 	}
 
-	salt, _ := createSalt(16)
+	salt, _ := salt(16)
 
-	priv, x, y, err := createServerKey()
+	priv, x, y, err := serverKey()
 	if err != nil {
 		return nil, err
 	}
@@ -110,15 +110,15 @@ func GetEncryptoMessage(cl, auth string, raw []byte) (*Encrypt, error) {
 		return nil, err
 	}
 
-	ctx := createContext(dc, pub)
+	ctx := context(dc, pub)
 
-	ci := createInfo("aesgcm", ctx)
+	ci := info("aesgcm", ctx)
 	ck, err := hkdf(salt, prk, ci, 16)
 	if err != nil {
 		return nil, err
 	}
 
-	ni := createInfo("nonce", ctx)
+	ni := info("nonce", ctx)
 	n, err := hkdf(salt, prk, ni, 12)
 	if err != nil {
 		return nil, err
@@ -134,7 +134,7 @@ func GetEncryptoMessage(cl, auth string, raw []byte) (*Encrypt, error) {
 		return nil, err
 	}
 
-	buf := makePadding(0)
+	buf := padding(pad)
 	buf.Write(raw)
 	result := cp.Seal([]byte{}, n, buf.Bytes(), nil)
 	return &Encrypt{
@@ -152,7 +152,7 @@ func convertBase64(b []byte) string {
 	return s
 }
 
-func makePadding(l int) *bytes.Buffer {
+func padding(l int) *bytes.Buffer {
 	be := make([]byte, 2)
 	binary.BigEndian.PutUint16(be, uint16(l))
 	buf := bytes.NewBuffer(be)
